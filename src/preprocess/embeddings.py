@@ -80,7 +80,7 @@ class MySentences(object):
 def clean_data(data_path):
 
     sentences = MySentences(data_path)
-    print("Transforming data 4-dimensional lists")
+    print("Transforming sentences 4-dimensional lists")
     sentences.transform()
     print("Done transforming data, proceeding to create embeddings")
 
@@ -94,11 +94,7 @@ def create_embeddings(sentences, emb_size, min_count):
                                    window=10,
                                    min_count=min_count,
                                    workers=multiprocessing.cpu_count())
-    print("Saving embeddings model...")
-    model.save("models/word2vec_gensim_%s" % emb_size)
-    model.wv.save_word2vec_format("models/word2vec_org_%s" % emb_size,
-                                  "models/vocabulary_%s" % emb_size,
-                                  binary=False)
+
     return model
 
 
@@ -107,7 +103,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--data', type=str, help="Path of the data to be used for the word embeddings"
                                                        " and clean up.", required=True)
-    parser.add_argument('-s', '--size', type=int, help="Size of the word embeddings.", default=200, required=False)
+    parser.add_argument('-s', '--size', type=int, help="Size of the word embeddings.", default=200, required=True)
 
     args = parser.parse_args()
     data_path = args.data
@@ -121,7 +117,13 @@ if __name__ == '__main__':
 
     min_count = 200
 
-    create_embeddings(sentences, emb_size, min_count)
+    model = create_embeddings(sentences, emb_size, min_count)
+
+    print("Saving embeddings model...")
+    model.save("../models/word2vec_gensim_%s" % emb_size)
+    model.wv.save_word2vec_format("../models/word2vec_org_%s" % emb_size,
+                                  "../models/vocabulary_%s" % emb_size,
+                                  binary=False)
 
     end = time()
     print("Total processing time: %d seconds" % (end - begin))

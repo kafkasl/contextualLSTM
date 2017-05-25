@@ -31,10 +31,16 @@ if __name__ == '__main__':
     # Create embeddings from the cleaned data
     model = create_embeddings(sentences, emb_size, min_count)
 
+    print("Saving embeddings model...")
+    model.save("../models/word2vec_gensim_%s" % emb_size)
+    model.wv.save_word2vec_format("../models/word2vec_org_%s" % emb_size,
+                                  "../models/vocabulary_%s" % emb_size,
+                                  binary=False)
+
     # Get only:
     #  * word2id vector (for transforming data to numerical)
     #  * id_word_vec (actually contain word embeddings an associated id <-> word
-    word2id, id_word_vec = transform_gensim(model)
+    word2id, id_word_vec = transform_gensim(model.wv)
 
     # Save model for checkpointing
     VectorManager.write_file("../models/word2id_%s" % emb_size, word2id)
