@@ -1,11 +1,17 @@
 from gensim.models.keyedvectors import KeyedVectors
 from utils.vector_manager import VectorManager
 import numpy as np
-import sys
 import argparse
 
 
 def transform_gensim(wv):
+    """
+    Transforms word2Vec model class to two structures: word2id dictionary (used to translate word into IDs) and
+    id_word_vec which contains the tuple (id, word, embedding) for each word in the model. Used to be called from
+    either main or as block of the pipeline.
+    :param wv: word2vec model with the word embeddings
+    :return: word2id and id_word_vec
+    """
     print("Transforming from gensim a total of %s" % len(wv.vocab.items()))
     zero_vec = np.zeros_like(wv.syn0[0])
     complete_vec = [(v.index + 1, w, wv.word_vec(w)) for w, v in wv.vocab.items()]

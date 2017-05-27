@@ -1,11 +1,10 @@
-import multiprocessing
-import os
-import argparse
-import multiprocessing as mp
-from time import time
-import numpy as np
-
 from utils.vector_manager import VectorManager
+from time import time
+import multiprocessing as mp
+import argparse
+import numpy as np
+import os
+
 
 
 def word2Id(param):
@@ -14,8 +13,10 @@ def word2Id(param):
     file_out = "%s_num" % filename.split("_clean")[0]
 
     def transform():
+        """
+        Transforms a 4D list of words into a 4D numpy array of integers and writes it into file_out
+        """
         docs = VectorManager.read_vector(filename)
-        # docs = [doc.strip() for doc in data.split(".\n--EOD--\n") if doc.strip()]
         file_list = []
         for doc in docs:
             doc_list = []
@@ -27,25 +28,30 @@ def word2Id(param):
                         par_list.append(s_id)
                 doc_list.append(par_list)
             file_list.append(doc_list)
-        VectorManager.write_file(file_out, file_list)
         np.save(file_out, np.array(file_list))
-        return file_list
 
     def toId(word):
+        """
+        Return ID of the word (or 0 if word is not in word2Id dict)
+        :param word: to translated
+        :return: Id of the word
+        """
         word_id = unk_id
-        # print("W: %s" % word)
         try:
             word_id = w2id[word]
-            # print("WordID: %s" % word_id)
         except KeyError:
             pass
         finally:
             return word_id
 
-    return transform()
+    transform()
 
 
 class FileW2ID(object):
+    """
+    Auxiliar class which holds the filepaths and w2id structure and yields them one at a time in order to avoid
+    replicating the w2id structure (which can be quite big)
+    """
 
     def __init__(self, filepaths, w2id):
         self.filepaths = filepaths
@@ -57,21 +63,24 @@ class FileW2ID(object):
 
 
 def translate_files(data_path, w2id):
+    """
+    Handles the parallel translation from word to id of the files in data_path with the mapping w2id
+    :param data_path: path of the files to transform. Used to be called from either main or as block of
+     the pipeline
+    :param w2id: mappings to be used
+    """
     print("Translating files from %s" % (data_path))
-    print("Creating multiprocessing pool.")
-    # p = mp.Pool(multiprocessing.cpu_count() * 2)
 
     filepaths = []
     for root, dirs, files in os.walk(data_path):
         filepaths.extend(["%s/%s" % (root, file) for file in files if file.endswith("_clean.pklz")])
 
     print("Starting word2Ids with %s processes and %s files" %
-          (multiprocessing.cpu_count() * 2, len(filepaths)))
+          (mp.cpu_count() * 2, len(filepaths)))
     iter_file_w2id = FileW2ID(filepaths, w2id)
 
-    for p in iter_file_w2id:
-        word2Id(p)
-    # p.map(word2Id, iter_file_w2id)
+    p = mp.Pool(mp.cpu_count() * 2)
+    p.map(word2Id, iter_file_w2id)
 
 
 if __name__ == '__main__':
@@ -91,4 +100,4 @@ if __name__ == '__main__':
     translate_files(data_path, w2Id)
 
     end = time()
-    print("Total procesing time: %d seconds" % (end - begin))
+    print("Total processing time: %d seconds" % (end - begin))

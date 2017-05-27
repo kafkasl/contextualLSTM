@@ -3,6 +3,7 @@ import pickle
 
 
 # Vectors represent: word <=> id/index <=> embedding
+# Auxiliar class handling all the read/write operations for data structures other than numpy arrays.
 class VectorManager(object):
 
     # Methods used to save the vectors

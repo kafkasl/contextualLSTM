@@ -1,0 +1,3 @@
+export PYTHONPATH="$PYTHONPATH:../src/"
+
+python2 ../src/postprocess/semantics_check.py -w ../models/word2vec_org_200

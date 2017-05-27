@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, '../src/')
+sys.path.insert(0, "../src/")
 
 from preprocess.embeddings import clean_data, create_embeddings
 from preprocess.transform_from_gensim import transform_gensim
@@ -9,6 +9,13 @@ from time import time
 
 import argparse
 
+""""
+Orchestrating file which handles all the processing pipeline:
+* Clean data
+* Create embeddings
+* Transform model structures
+* Translate word's lists to IDs lists.
+"""
 
 if __name__ == '__main__':
 
@@ -28,7 +35,7 @@ if __name__ == '__main__':
     t0 = time()
     sentences = clean_data(data_path)
     t1 = time()
-    print("Time cleaning data: %s" % (t1-t0))
+    print("Time cleaning data: %s\nCreating embeddings from cleaned data..." % (t1-t0))
 
     # Create embeddings from the cleaned data
     model = create_embeddings(sentences, emb_size, min_count)

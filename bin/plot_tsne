@@ -1,0 +1,3 @@
+export PYTHONPATH="$PYTHONPATH:../src/"
+
+python2 ../src/postprocess/tsne.py -i ../models/idWordVec.pklz -w ../models/word2vec_org_200
