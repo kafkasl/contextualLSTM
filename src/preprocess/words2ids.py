@@ -4,6 +4,7 @@ import multiprocessing as mp
 import argparse
 import numpy as np
 import os
+import sys
 
 
 
@@ -71,19 +72,21 @@ def translate_files(data_path, w2id):
      the pipeline
     :param w2id: mappings to be used
     """
-    print("Translating files from %s" % (data_path))
+    print("[BLOCK] Translating files from %s" % (data_path))
 
     filepaths = []
     for root, dirs, files in os.walk(data_path):
         filepaths.extend(["%s/%s" % (root, file) for file in files if file.endswith("_clean.pklz")])
 
-    print("Starting word2Ids with %s processes and %s files" %
+    print("[BLOCK] Starting word2Ids with %s processes and %s files" %
           (mp.cpu_count() * 2, len(filepaths)))
     iter_file_w2id = FileW2ID(filepaths, w2id)
 
     p = mp.Pool(mp.cpu_count() * 2)
     p.map(word2Id, iter_file_w2id)
 
+    print("[BLOCK] Files translated to IDs")
+    sys.stdout.flush()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

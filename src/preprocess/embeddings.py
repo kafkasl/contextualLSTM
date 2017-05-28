@@ -6,6 +6,7 @@ import multiprocessing as mp
 import gensim
 import os
 import re
+import sys
 import argparse
 
 
@@ -89,8 +90,7 @@ class MySentences(object):
             filtered_files = ["%s/%s" % (root, file) for file in files if is_number(file.split("_")[1]) and len(file.split("_")) == 2]
 
             threads = mp.cpu_count()*4
-            print("Starting %s processes to clean %s files" %
-                  (threads, len(filtered_files)))
+            print("Starting %s processes to clean %s files" % (threads, len(filtered_files)))
             i = 0
             while i < len(filtered_files):
                 ps = []
@@ -98,14 +98,8 @@ class MySentences(object):
                 while j < threads and (i+j) < len(filtered_files):
                     print("[%s] Creating %s of %s for file %s" % (i, i+j, max(threads, len(filtered_files)), filtered_files[i+j]))
                     p = (mp.Process(target=_transform_file, args=(filtered_files[i+j],)))
+                    p.start()
                     ps.append(p)
-                    j += 1
-
-                print("%s process in the list to start" % len(ps))
-                j = 0
-                while j < threads and (i+j) < len(filtered_files):
-                    print("[%s] Starting %s" % (i, i+j))
-                    ps[j].start()
                     j += 1
 
                 print("%s process in the list to join" % len(ps))
@@ -116,6 +110,8 @@ class MySentences(object):
                     j += 1
 
                 i += j
+
+        sys.stdout.flush()
 
     def __iter__(self):
         """
@@ -146,9 +142,10 @@ def clean_data(data_path):
     :return: MySentences class ready to be fed to Word2Vec model
     """
     sentences = MySentences(data_path)
-    print("Transforming sentences to 4-dimensional lists")
+    print("[BLOCK] Transforming sentences to 4-dimensional lists")
     sentences.transform()
-    print("Done transforming data, proceeding to create embeddings")
+    print("[BLOCK] Done transforming data")
+    sys.stdout.flush()
 
     return sentences
 
@@ -163,11 +160,14 @@ def create_embeddings(sentences, emb_size, min_count):
     :param min_count: min. occurrences per word to be included
     :return: word2vec model with all the embeddings and extra info
     """
+    print("[BLOCK] Creating embeddings model")
     model = gensim.models.Word2Vec(sentences,
                                    size=emb_size,
                                    window=10,
                                    min_count=min_count,
                                    workers=mp.cpu_count())
+    print("[BLOCK] Created embeddings of size %s" % emb_size)
+    sys.stdout.flush()
 
     return model
 

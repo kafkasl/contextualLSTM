@@ -4,7 +4,9 @@ import multiprocessing as mp
 import argparse
 import numpy as np
 import os
+import sys
 
+confidence = 0.8
 
 
 def id2Word(param):
@@ -13,7 +15,7 @@ def id2Word(param):
     print("Comparing original %s with %s" % (file_words, filename))
 
 
-    def transform():
+    def is_valid():
         """
         Transforms a 4D list of words into a 4D numpy array of integers and writes it into file_out
         """
@@ -28,31 +30,33 @@ def id2Word(param):
                 for s in range(0, len(docs_ids[d][p])):
                     sent_list = []
                     for w in range(0, len(docs_ids[d][p][s])):
-                        translated = toWord(docs_ids[d][p][s][w])
+                        translated = to_word(docs_ids[d][p][s][w])
                         comparison.append(translated == original[d][p][s][w])
                         sent_list.append(translated)
                     par_list.append(sent_list)
                 doc_list.append(par_list)
             file_list.append(doc_list)
 
+        valid = False
         try:
             ratio = float(comparison.count(True)) / len(comparison)
-            if ratio < 0.8:
+            if ratio < confidence:
                 print("[WARN] File %s equality ratio is %s" % (filename, round(ratio, 2)))
             else:
                 print("[OK] File %s equality ratio is %s" % (filename, round(ratio, 2)))
+                valid = True
         except KeyError as e:
             print("[ERROR] File %s is completely different (%s)" % (filename, e))
 
-        # return comparison
-        return original, np.array(file_list)
+
+        return valid
 
 
-    def toWord(id):
+    def to_word(id):
         """
-        Return ID of the word (or 0 if word is not in word2Id dict)
-        :param word: to translated
-        :return: Id of the word
+        Return Word associated with id
+        :param id: of the word to translate
+        :return: word associated with the ID
         """
         try:
             word = id2w[id]
@@ -61,7 +65,7 @@ def id2Word(param):
             word = 'unk'
         return word
 
-    transform()
+    return is_valid()
 
 
 class FileID2Word(object):
@@ -86,7 +90,7 @@ def check_translated_files(data_path, w2Id):
      the pipeline
     :param w2id: mappings to be used
     """
-    print("Translating files from %s" % (data_path))
+    print("[BLOCK] Validating translated files from %s" % (data_path))
 
     sorted_list = sorted(w2Id.items(), key= lambda(x): x[1])
     id2words = [w for w,_ in sorted_list]
@@ -94,14 +98,14 @@ def check_translated_files(data_path, w2Id):
     filepaths = []
     for root, dirs, files in os.walk(data_path):
         filepaths.extend(["%s/%s" % (root, file) for file in files if file.endswith("_num.npy")])
-
-    print("Starting word2Ids with %s processes and %s files" %
-          (mp.cpu_count() * 2, len(filepaths)))
+    n_threads = mp.cpu_count() * 2
+    print("[BLOCK] Starting validation with %s processes and %s files" % (n_threads, len(filepaths)))
     iter_file_w2id = FileID2Word(filepaths, id2words)
 
-    p = mp.Pool(mp.cpu_count() * 2)
-    print("Files %s" % filepaths)
-    p.map(id2Word, iter_file_w2id)
+    p = mp.Pool(n_threads)
+    valids = p.map(id2Word, iter_file_w2id)
+    print("[BLOCK] Validation done. Correct files %s/%s. Confidence [%s]" % (valids.count(True), len(valids), confidence))
+    sys.stdout.flush()
 
 
 if __name__ == '__main__':
