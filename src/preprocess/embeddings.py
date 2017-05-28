@@ -52,6 +52,7 @@ def _transform_file(file_path):
     paragraphs and docs. Write the result to disk with the name filename_clean.pklz
     :param file_path: file to transform
     """
+    print("Cleaning %s" % file_path)
     with open(file_path) as f:
         data = f.read()
         docs = data.split("</doc>")
@@ -73,6 +74,7 @@ def _transform_file(file_path):
         file_list.append(doc_list)
     VectorManager.write_file(file_out, file_list)
     del file_list
+    print("Done with %s" % file_path)
 
 
 class MySentences(object):
@@ -93,16 +95,22 @@ class MySentences(object):
             while i < len(filtered_files):
                 ps = []
                 j = 0
-                while j < (threads) and (i+j) < len(filtered_files):
-                    print("[%s] Starting %s of %s for file %s" % (i, j, max(threads, len(filtered_files)), filtered_files[i+j]))
+                while j < threads and (i+j) < len(filtered_files):
+                    print("[%s] Creating %s of %s for file %s" % (i, i+j, max(threads, len(filtered_files)), filtered_files[i+j]))
                     p = (mp.Process(target=_transform_file, args=(filtered_files[i+j],)))
-                    p.start()
                     ps.append(p)
                     j += 1
 
-                print("%s process in the list" % len(ps))
+                print("%s process in the list to start" % len(ps))
                 j = 0
-                while j < (threads) and (i+j) < len(filtered_files):
+                while j < threads and (i+j) < len(filtered_files):
+                    print("[%s] Starting %s" % (i, i+j))
+                    ps[j].start()
+                    j += 1
+
+                print("%s process in the list to join" % len(ps))
+                j = 0
+                while j < threads and (i+j) < len(filtered_files):
                     print("[%s] Joining %s of %s for file %s" % (i, j, max(threads, len(filtered_files)), filtered_files[i+j]))
                     ps[j].join()
                     j += 1

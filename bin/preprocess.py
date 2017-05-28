@@ -4,6 +4,7 @@ sys.path.insert(0, "../src/")
 from preprocess.embeddings import clean_data, create_embeddings
 from preprocess.transform_from_gensim import transform_gensim
 from preprocess.words2ids import translate_files
+from preprocess.words2ids_validator import check_translated_files
 from utils.vector_manager import VectorManager
 from time import time
 
@@ -64,6 +65,11 @@ if __name__ == '__main__':
     translate_files(data_path, word2id)
     t6 = time()
     print("Time translating words to numbers: %s" % (t6-t5))
+
+    t7 = time()
+    check_translated_files(data_path, word2id)
+    t8 = time()
+    print("Time translating words to numbers: %s" % (t8-t7))
 
 
 

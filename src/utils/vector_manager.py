@@ -1,3 +1,4 @@
+import numpy as np
 import gzip
 import pickle
 
@@ -15,8 +16,15 @@ class VectorManager(object):
     # Methods to read vectors
     @staticmethod
     def read_vector(filename):
-        with gzip.open(filename, 'rb') as f:
-            return pickle.load(f)
+        ext = filename.split(".")[-1]
+        if ext == "pklz":
+            with gzip.open(filename, 'rb') as f:
+                return pickle.load(f)
+        elif ext == "npy":
+            with open(filename, "rb") as f:
+                return np.load(f)
+        else:
+            print("Unknown file extension for file %s" % filename)
 
     @staticmethod
     def read_id_word_vec():

@@ -9,6 +9,7 @@ import os
 
 def word2Id(param):
     filename, w2id = param
+    print("Translating %s" % filename)
     unk_id = 0
     file_out = "%s_num" % filename.split("_clean")[0]
 
@@ -29,6 +30,7 @@ def word2Id(param):
                 doc_list.append(par_list)
             file_list.append(doc_list)
         np.save(file_out, np.array(file_list))
+        return np.array(file_list)
 
     def toId(word):
         """
@@ -44,7 +46,7 @@ def word2Id(param):
         finally:
             return word_id
 
-    transform()
+    return transform()
 
 
 class FileW2ID(object):
@@ -87,7 +89,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--data', type=str, help="Path of the data to be translated with word2id vector."
                                                        " and clean up.", required=True)
-    parser.add_argument('-wv', '--word_vector', type=str, help="Word2ID vector to be used for doc translation.",
+    parser.add_argument('-w', '--word_vector', type=str, help="Word2ID vector to be used for doc translation.",
                         required=True)
 
     args = parser.parse_args()
