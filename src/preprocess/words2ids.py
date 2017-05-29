@@ -78,11 +78,12 @@ def translate_files(data_path, w2id):
     for root, dirs, files in os.walk(data_path):
         filepaths.extend(["%s/%s" % (root, file) for file in files if file.endswith("_clean.pklz")])
 
+    threads = mp.cpu_count() * 2
     print("[BLOCK] Starting word2Ids with %s processes and %s files" %
-          (mp.cpu_count() * 2, len(filepaths)))
+          (threads, len(filepaths)))
     iter_file_w2id = FileW2ID(filepaths, w2id)
 
-    p = mp.Pool(mp.cpu_count() * 2)
+    p = mp.Pool(threads, maxtasksperchild=1)
     p.map(word2Id, iter_file_w2id)
 
     print("[BLOCK] Files translated to IDs")

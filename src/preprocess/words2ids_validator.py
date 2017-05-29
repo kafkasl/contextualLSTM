@@ -98,11 +98,11 @@ def check_translated_files(data_path, w2Id):
     filepaths = []
     for root, dirs, files in os.walk(data_path):
         filepaths.extend(["%s/%s" % (root, file) for file in files if file.endswith("_num.npy")])
-    n_threads = mp.cpu_count() * 2
-    print("[BLOCK] Starting validation with %s processes and %s files" % (n_threads, len(filepaths)))
+    threads = mp.cpu_count() * 2
     iter_file_w2id = FileID2Word(filepaths, id2words)
+    print("[BLOCK] Starting validation with %s processes and %s files" % (threads, len(filepaths)))
 
-    p = mp.Pool(n_threads)
+    p = mp.Pool(threads, maxtasksperchild=1)
     valids = p.map(id2Word, iter_file_w2id)
     print("[BLOCK] Validation done. Correct files %s/%s. Confidence [%s]" % (valids.count(True), len(valids), confidence))
     sys.stdout.flush()
