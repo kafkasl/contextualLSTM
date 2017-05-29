@@ -1,7 +1,8 @@
 import sys
 sys.path.insert(0, "../src/")
 
-from preprocess.embeddings import clean_data, create_embeddings
+from preprocess.cleaner import clean_data
+from preprocess.embeddings import create_embeddings
 from preprocess.transform_from_gensim import transform_gensim
 from preprocess.words2ids import translate_files
 from preprocess.words2ids_validator import check_translated_files
