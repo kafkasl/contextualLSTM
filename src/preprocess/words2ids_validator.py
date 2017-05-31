@@ -11,7 +11,7 @@ confidence = 0.8
 
 def id2Word(param):
     filename, id2w = param
-    file_words = "%s_clean.pklz" % filename.split("_num")[0]
+    file_words = "%s_clean" % filename.split("_num")[0]
     print("Comparing original %s with %s" % (file_words, filename))
 
 
@@ -20,9 +20,10 @@ def id2Word(param):
         Transforms a 4D list of words into a 4D numpy array of integers and writes it into file_out
         """
         docs_ids = VectorManager.read_vector(filename)
-        original = VectorManager.read_vector(file_words)
+        original = VectorManager.parse_into_4D(VectorManager.read_vector(file_words))
         file_list = []
         comparison = []
+        unknowns = 0
         for d in range(0, len(docs_ids)):
             doc_list = []
             for p in range(0, len(docs_ids[d])):
@@ -30,9 +31,14 @@ def id2Word(param):
                 for s in range(0, len(docs_ids[d][p])):
                     sent_list = []
                     for w in range(0, len(docs_ids[d][p][s])):
-                        translated = to_word(docs_ids[d][p][s][w])
-                        comparison.append(translated == original[d][p][s][w])
-                        sent_list.append(translated)
+                        try:
+                            translated = to_word(docs_ids[d][p][s][w])
+                            if translated == 'unk':
+                                unknowns += 1
+                            comparison.append(translated == original[d][p][s][w])
+                            sent_list.append(translated)
+                        except:
+                            print("[%s] Indices %s %s %s %s" % (filename, d,p,s,w))
                     par_list.append(sent_list)
                 doc_list.append(par_list)
             file_list.append(doc_list)
@@ -40,13 +46,14 @@ def id2Word(param):
         valid = False
         try:
             ratio = float(comparison.count(True)) / len(comparison)
+            u_ratio = round(float(unknowns) / len(comparison), 2)
             if ratio < confidence:
-                print("[WARN] File %s equality ratio is %s" % (filename, round(ratio, 2)))
+                print("[WARN] File %s equality ratio is %s with %s unknown ratio" % (filename, round(ratio, 2), u_ratio))
             else:
-                print("[OK] File %s equality ratio is %s" % (filename, round(ratio, 2)))
+                print("[OK] File %s equality ratio is %s with %s unknown ratio" % (filename, round(ratio, 2), u_ratio))
                 valid = True
         except KeyError as e:
-            print("[ERROR] File %s is completely different (%s)" % (filename, e))
+            print("[ERROR] File %s is completely different (%s) with %s unknown ratio" % (filename, e, u_ratio))
 
 
         return valid

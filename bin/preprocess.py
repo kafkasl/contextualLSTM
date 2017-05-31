@@ -33,6 +33,9 @@ if __name__ == '__main__':
     emb_size = args.size  # size of the embedding vectors to create
     min_count = args.count  # minimum word occurrences to be in embeddings set
 
+    print("Starting Preprocess pipeline\n\t * Data path: %s\n\t * Embedding size: %s\n\t * Min count: %s" %
+          (data_path, emb_size, min_count))
+
     # Clean Wikipedia data
     t0 = time()
     sentences = clean_data(data_path)
@@ -40,7 +43,7 @@ if __name__ == '__main__':
     print("Time cleaning data: %s\nCreating embeddings from cleaned data..." % (t1-t0))
 
     # Create embeddings from the cleaned data
-    model = create_embeddings(sentences, emb_size, min_count)
+    model = create_embeddings(data_path, emb_size, min_count)
     t2 = time()
     print("Time creating embeddings: %s" % (t2-t1))
 
@@ -59,8 +62,8 @@ if __name__ == '__main__':
     print("Time transforming gensim to word2ID and idWordVec vectors: %s" % (t4-t3))
 
     # Save model for checkpointing
-    VectorManager.write_file("../models/word2id_%s" % emb_size, word2id)
-    VectorManager.write_file("../models/idWordVec_%s" % emb_size, id_word_vec)
+    VectorManager.write_pickled("../models/word2id_%s" % emb_size, word2id)
+    VectorManager.write_pickled("../models/idWordVec_%s" % emb_size, id_word_vec)
 
     t5 = time()
     translate_files(data_path, word2id)

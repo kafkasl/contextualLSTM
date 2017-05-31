@@ -7,10 +7,9 @@ import os
 import sys
 
 
-
-def word2Id(param):
-    filename, w2id = param
-    print("Translating %s" % filename)
+def word2Id(filename, w2id, debug=False):
+    if debug:
+        print("Translating %s" % filename)
     unk_id = 0
     file_out = "%s_num" % filename.split("_clean")[0]
 
@@ -18,7 +17,7 @@ def word2Id(param):
         """
         Transforms a 4D list of words into a 4D numpy array of integers and writes it into file_out
         """
-        docs = VectorManager.read_vector(filename)
+        docs = VectorManager.parse_into_4D(VectorManager.read_vector(filename))
         file_list = []
         for doc in docs:
             doc_list = []
@@ -31,7 +30,7 @@ def word2Id(param):
                 doc_list.append(par_list)
             file_list.append(doc_list)
         np.save(file_out, np.array(file_list))
-        return np.array(file_list)
+        # return np.array(file_list)
 
     def toId(word):
         """
@@ -47,7 +46,8 @@ def word2Id(param):
         finally:
             return word_id
 
-    return transform()
+    transform()
+    # return transform()
 
 
 class FileW2ID(object):
@@ -65,7 +65,7 @@ class FileW2ID(object):
             yield (file, self.w2id)
 
 
-def translate_files(data_path, w2id):
+def translate_files(data_path, w2id, debug=False):
     """
     Handles the parallel translation from word to id of the files in data_path with the mapping w2id
     :param data_path: path of the files to transform. Used to be called from either main or as block of
@@ -76,15 +76,39 @@ def translate_files(data_path, w2id):
 
     filepaths = []
     for root, dirs, files in os.walk(data_path):
-        filepaths.extend(["%s/%s" % (root, file) for file in files if file.endswith("_clean.pklz")])
+        filepaths.extend(["%s/%s" % (root, file) for file in files if file.endswith("_clean")])
 
-    threads = mp.cpu_count() * 2
-    print("[BLOCK] Starting word2Ids with %s processes and %s files" %
-          (threads, len(filepaths)))
-    iter_file_w2id = FileW2ID(filepaths, w2id)
+    threads = min(mp.cpu_count() * 4, filepaths)
 
-    p = mp.Pool(threads, maxtasksperchild=1)
-    p.map(word2Id, iter_file_w2id)
+    print("[BLOCK] Starting %s processes to translate to IDs %s files" % (threads, len(filepaths)))
+    i = 0
+    while i < len(filepaths):
+        ps = []
+        j = 0
+        while j < threads and (i + j) < len(filepaths):
+            if debug:
+                print("[%s] Creating %s of %s for file %s" % (
+                    i, i + j, len(filepaths), filepaths[i + j]))
+            p = (mp.Process(target=word2Id, args=(filepaths[i + j],w2id,)))
+            p.start()
+            ps.append(p)
+            j += 1
+
+        if debug:
+            print("%s process in the list to join" % len(ps))
+        j = 0
+        while j < threads and (i + j) < len(filepaths):
+            if debug:
+                print("[%s] Joining %s of %s for file %s" % (
+                    i, j, len(filepaths), filepaths[i + j]))
+            ps[j].join()
+            j += 1
+
+        i += j
+    # for p in iter_file_w2id:
+    #     word2Id(p)
+    # p = mp.Pool(threads, maxtasksperchild=1)
+    # p.map(word2Id, iter_file_w2id)
 
     print("[BLOCK] Files translated to IDs")
     sys.stdout.flush()

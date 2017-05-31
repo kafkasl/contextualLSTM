@@ -36,9 +36,9 @@ if __name__ == '__main__':
     emb_size = len(wv.syn0[0])
     word2id, id_word_vec = transform_gensim(wv)
 
-    w2id_filepath = "word2id_%s" % emb_size
-    idWordVec_filepath = "idWordVec_%s" % emb_size
+    w2id_filepath = "../models/word2id_%s" % emb_size
+    idWordVec_filepath = "../models/idWordVec_%s" % emb_size
 
     print("Writing files:\n\t * word2id: %s\n\t * idWordVec: %s" % (w2id_filepath, idWordVec_filepath))
-    VectorManager.write_file(w2id_filepath, word2id)
-    VectorManager.write_file(idWordVec_filepath, id_word_vec)
+    VectorManager.write_pickled(w2id_filepath, word2id)
+    VectorManager.write_pickled(idWordVec_filepath, id_word_vec)
