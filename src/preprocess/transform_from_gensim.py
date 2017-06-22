@@ -13,10 +13,9 @@ def transform_gensim(wv):
     :return: word2id and id_word_vec
     """
     print("Transforming from gensim a total of %s" % len(wv.vocab.items()))
-    zero_vec = np.zeros_like(wv.syn0[0])
-    complete_vec = [(v.index + 1, w, wv.word_vec(w)) for w, v in wv.vocab.items()]
+    complete_vec = [(v.index, w, wv.word_vec(w)) for w, v in wv.vocab.items()]
     sorted_vec = sorted(complete_vec)
-    id_word_vec = [(0, 'unk', zero_vec)] + sorted_vec
+    id_word_vec = sorted_vec
     word2id = dict([(w, id) for id, w, _ in id_word_vec])
 
     return word2id, id_word_vec

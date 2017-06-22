@@ -15,7 +15,6 @@ class VectorManager(object):
                 for doc in file_string.split("\n\n\n")
                 if doc]
 
-    # Methods used to save the vectors
     @staticmethod
     def parse_into_list(file_string):
         file_list = []
@@ -31,6 +30,17 @@ class VectorManager(object):
     # Methods used to save the vectors
     @staticmethod
     def parse_into_sentences(file_string):
+        sentences = []
+        for doc in file_string.split("\n\n\n"):
+            for p in doc.split("\n\n"):
+                for s in p.split("\n"):
+                    ws = s.split()
+                    if ws:
+                        sentences.append(ws)
+        return sentences
+
+    @staticmethod
+    def parse_into_paragraphs(file_string):
         sentences = []
         for doc in file_string.split("\n\n\n"):
             for p in doc.split("\n\n"):

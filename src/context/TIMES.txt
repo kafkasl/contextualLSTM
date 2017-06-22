@@ -1,0 +1,9 @@
+hdp_topicsLoadedAnalysis-764553.out:[BLOCK] Training time for LSA: 14390.89
+lsa__topicsLoadedAnalysis-764083.out:[BLOCK] Training time for LSA: 12396.78
+lsa__topicsLoadedAnalysis-764552.out:[BLOCK] Training time for LSA: 14483.59
+topicsLoadedAnalysis-764012.out:[BLOCK] Training time for LSA: 9075.62
+
+
+model = LdaMulticore(corpus, id2word=dictionary, num_topics=100,  workers=11, passes=3)
+ldam__topicsLoadedAnalysis-764082.out:[BLOCK] Training time for LDA multicore: 52544.35
+

@@ -20,7 +20,7 @@ class MySentences(object):
         self.files = []
         self.file_paths = []
         for root, dirs, files in os.walk(self.dirname):
-            for filename in [file for file in files if file.endswith("_clean")]:
+            for filename in [file for file in files if file.endswith("_simple")]:
                 file_path = root + '/' + filename
                 self.file_paths.append(file_path)
         print("Got %s files to turn into sentences" % len(self.file_paths))

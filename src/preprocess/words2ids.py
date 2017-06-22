@@ -13,7 +13,7 @@ def word2Id(filename, w2id, debug=False):
     unk_id = 0
     file_out = "%s_num" % filename.split("_clean")[0]
 
-    def transform():
+    def transform_numpy():
         """
         Transforms a 4D list of words into a 4D numpy array of integers and writes it into file_out
         """
@@ -30,7 +30,20 @@ def word2Id(filename, w2id, debug=False):
                 doc_list.append(par_list)
             file_list.append(doc_list)
         np.save(file_out, np.array(file_list))
-        # return np.array(file_list)
+
+
+    def transform():
+        """
+        Transforms a 4D list of words into a 4D numpy array of integers and writes it into file_out
+        """
+        with open(filename) as f:
+            data = f.read().decode("latin-1").split()
+
+        ids = " ".join([str(w2id[w]) for w in data])
+
+        with open("%s_num_eos" % filename, "wb") as f:
+            f.write(ids)
+
 
     def toId(word):
         """
@@ -65,7 +78,7 @@ class FileW2ID(object):
             yield (file, self.w2id)
 
 
-def translate_files(data_path, w2id, debug=False):
+def translate_files(data_path, w2id, suffix="_simple", debug=False):
     """
     Handles the parallel translation from word to id of the files in data_path with the mapping w2id
     :param data_path: path of the files to transform. Used to be called from either main or as block of
@@ -76,7 +89,7 @@ def translate_files(data_path, w2id, debug=False):
 
     filepaths = []
     for root, dirs, files in os.walk(data_path):
-        filepaths.extend(["%s/%s" % (root, file) for file in files if file.endswith("_clean")])
+        filepaths.extend(["%s/%s" % (root, file) for file in files if file.endswith(suffix)])
 
     threads = min(mp.cpu_count() * 4, filepaths)
 
@@ -89,7 +102,7 @@ def translate_files(data_path, w2id, debug=False):
             if debug:
                 print("[%s] Creating %s of %s for file %s" % (
                     i, i + j, len(filepaths), filepaths[i + j]))
-            p = (mp.Process(target=word2Id, args=(filepaths[i + j],w2id,)))
+            p = (mp.Process(target=word2Id, args=(filepaths[i + j], w2id,)))
             p.start()
             ps.append(p)
             j += 1
@@ -118,7 +131,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--data', type=str, help="Path of the data to be translated with word2id vector."
                                                        " and clean up.", required=True)
     parser.add_argument('-w', '--word_vector', type=str, help="Word2ID vector to be used for doc translation.",
-                        required=True)
+                        required=False, default="../models/eos/word2id_1000.pklz")
 
     args = parser.parse_args()
     data_path = args.data

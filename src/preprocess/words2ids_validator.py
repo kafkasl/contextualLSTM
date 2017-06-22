@@ -15,9 +15,8 @@ def id2Word(param):
     print("Comparing original %s with %s" % (file_words, filename))
 
 
-    def is_valid():
+    def is_valid_numpy():
         """
-        Transforms a 4D list of words into a 4D numpy array of integers and writes it into file_out
         """
         docs_ids = VectorManager.read_vector(filename)
         original = VectorManager.parse_into_4D(VectorManager.read_vector(file_words))
@@ -33,12 +32,12 @@ def id2Word(param):
                     for w in range(0, len(docs_ids[d][p][s])):
                         try:
                             translated = to_word(docs_ids[d][p][s][w])
-                            if translated == 'unk':
+                            if translated == '<unk>':
                                 unknowns += 1
                             comparison.append(translated == original[d][p][s][w])
                             sent_list.append(translated)
-                        except:
-                            print("[%s] Indices %s %s %s %s" % (filename, d,p,s,w))
+                        except Exception as e:
+                            print("[%s] Indices %s %s %s %s: %s" % (filename, d,p,s,w, e))
                     par_list.append(sent_list)
                 doc_list.append(par_list)
             file_list.append(doc_list)
@@ -58,6 +57,32 @@ def id2Word(param):
 
         return valid
 
+    def is_valid():
+        """
+        """
+        with open(file_words) as f:
+            original = f.read().decode("latin-1").split()
+
+        with open(file_words) as f:
+            docs_ids = f.read().split()
+
+        doc_words = [id2w(id) for id in docs_ids]
+
+        comparison = [original[i] == doc_words[i] for i in range(original)]
+        valid = False
+        try:
+            ratio = float(comparison.count(True)) / len(comparison)
+            if ratio < confidence:
+                print("[WARN] File %s equality ratio is %s." % (filename, round(ratio, 2)))
+            else:
+                print("[OK] File %s equality ratio is %s." % (filename, round(ratio, 2)))
+                valid = True
+        except KeyError as e:
+            print("[ERROR] File %s is completely different (%s) with %s unknown ratio" % (filename, e))
+
+
+        return valid
+
 
     def to_word(id):
         """
@@ -69,7 +94,7 @@ def id2Word(param):
             word = id2w[id]
         except IndexError as e:
             print("ID %s not found\n%s" % (id, e))
-            word = 'unk'
+            word = '<unk>'
         return word
 
     return is_valid()
