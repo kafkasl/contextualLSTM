@@ -61,6 +61,8 @@ sys.path.insert(0, "../src/")
 
 import inspect
 import time
+from utils.vector_manager import VectorManager
+
 
 import numpy as np
 import tensorflow as tf
@@ -108,10 +110,43 @@ class WPInput(object):
     def __init__(self, config, data, name=None):
         self.batch_size = batch_size = config.batch_size
         self.num_steps = num_steps = config.num_steps
-        self.epoch_size = ((len(data) // batch_size) - 1) // num_steps
-        self.input_data, self.targets = reader.wiki_producer(name,
-            data, batch_size, num_steps, name=name)
+        self.epoch_size = ((1516132009 // batch_size) - 1) // num_steps
+        # self.input_data, self.targets = reader.wiki_producer(name,
+        #     data, batch_size, num_steps, name=name)
 
+        embeddings = VectorManager.read_vector("/home/hydra/projects/contextualLSTM/models/eos/idWordVec_%s.pklz"
+                                               % get_config().embedding_size)
+        files = open("/home/hydra/projects/contextualLSTM/data/small/train.list").read().split()
+
+        config = get_config()
+        self.gen = generate_arrays_from_list(files, embeddings, batch_size=config.batch_size,
+                                        embedding_size=config.embedding_size,
+                                        num_steps=config.num_steps, n_vocab=config.vocab_size)
+        self.input_data, self.targets = self.gen.next()
+
+
+def generate_arrays_from_list(files, embeddings, num_steps=35, batch_size=20, embedding_size=200, n_vocab=126930):
+
+    for file_name in files:
+        raw_list = VectorManager.parse_into_list(open(file_name).read())
+
+        n_words = len(raw_list)
+        batch_len = n_words // batch_size
+        data = np.reshape(raw_list[0:batch_size*batch_len], [batch_size, batch_len])
+
+        for i in range(0, n_words - num_steps, 1):
+
+            x = data[0:batch_size, i * num_steps:(i + 1) * num_steps]
+            x = [[embeddings[int(elem)][2] for elem in l] for l in x]
+
+            x = np.reshape(x, newshape=(batch_size, num_steps, embedding_size))
+
+            y = data[0:batch_size, i * num_steps + 1:(i + 1) * num_steps + 1]
+            # y = [[tf.one_hot(elem, n_vocab) for elem in l] for l in y]
+
+            y = np.reshape(y, newshape=(batch_size, num_steps))
+
+            yield x, y
 
 class WPModel(object):
     """Word Prediction model."""
@@ -123,6 +158,7 @@ class WPModel(object):
         num_steps = input_.num_steps
         size = config.hidden_size
         vocab_size = config.vocab_size
+        embedding_size = config.embedding_size
 
         # Slightly better results can be obtained with forget gate biases
         # initialized to 1 but the hyperparameters of the model would need to be
@@ -156,17 +192,20 @@ class WPModel(object):
         with tf.device("/cpu:0"):
             # TODO: replace TF input with my embeddings
             # TODO: implement PTB reader or something similar
-            embedding = tf.get_variable(
-                "embedding", [vocab_size, size], dtype=data_type())
-            inputs = tf.nn.embedding_lookup(embedding, input_.input_data)
-
+            # embedding = tf.get_variable(
+            #     "embedding", [vocab_size, size], dtype=data_type())
+            # embeddings = tf.placeholder(dtype=data_type(), shape=(config.vocab_size, config.embeding_size))
+            # inputs = tf.nn.embedding_lookup(embeddings, input_.input_data)
+            self.inputs = tf.placeholder(dtype=data_type(), shape=(batch_size, num_steps, embedding_size))
+            self.targets = tf.placeholder(dtype=tf.int32, shape=(batch_size, num_steps))
 
         if is_training and config.keep_prob < 1:
             # Dropout allows to use the net for train and testing
             # See: https://stackoverflow.com/questions/34597316/why-input-is-scaled-in-tf-nn-dropout-in-tensorflow
             # and: http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf
-            inputs = tf.nn.dropout(inputs, config.keep_prob)
-
+            inputs = tf.nn.dropout(self.inputs, config.keep_prob)
+        else:
+            inputs = self.inputs
         # Simplified version of models/tutorials/rnn/rnn.py's rnn().
         # This builds an unrolled LSTM for tutorial purposes only.
         # In general, use the rnn() or state_saving_rnn() from rnn.py.
@@ -195,7 +234,7 @@ class WPModel(object):
         logits = tf.matmul(output, softmax_w) + softmax_b
         loss = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
             [logits],
-            [tf.reshape(input_.targets, [-1])],
+            [tf.reshape(self.targets, [-1])],
             [tf.ones([batch_size * num_steps], dtype=data_type())])
         self._cost = cost = tf.reduce_sum(loss) / batch_size
         self._final_state = state
@@ -257,7 +296,8 @@ class SmallConfig(object):
     keep_prob = 1.0
     lr_decay = 0.5
     batch_size = 20
-    vocab_size = 27942
+    vocab_size = 126930
+    embedding_size = 200
 
 
 class MediumConfig(object):
@@ -273,7 +313,8 @@ class MediumConfig(object):
     keep_prob = 0.5
     lr_decay = 0.8
     batch_size = 20
-    vocab_size = 10000
+    vocab_size = 126930
+    embedding_size = 200
 
 
 class LargeConfig(object):
@@ -289,7 +330,8 @@ class LargeConfig(object):
     keep_prob = 0.35
     lr_decay = 1 / 1.15
     batch_size = 20
-    vocab_size = 10000
+    vocab_size = 126930
+    embedding_size = 1000
 
 
 class TestConfig(object):
@@ -305,7 +347,8 @@ class TestConfig(object):
     keep_prob = 1.0
     lr_decay = 0.5
     batch_size = 20
-    vocab_size = 10000
+    vocab_size = 126930
+    embedding_size = 200
 
 
 def run_epoch(session, model, eval_op=None, verbose=False):
@@ -322,11 +365,22 @@ def run_epoch(session, model, eval_op=None, verbose=False):
     if eval_op is not None:
         fetches["eval_op"] = eval_op
 
+    embeddings = VectorManager.read_vector("/home/hydra/projects/contextualLSTM/models/eos/idWordVec_%s.pklz"
+                                           % get_config().embedding_size)
+    files = open("/home/hydra/projects/contextualLSTM/data/small/train.list").read().split()
+
+    config = get_config()
+    gen = generate_arrays_from_list(files, embeddings, batch_size=config.batch_size, embedding_size=config.embedding_size,
+                                    num_steps=config.num_steps, n_vocab=config.vocab_size)
     for step in range(model.input.epoch_size):
+        x, y = gen.next()
         feed_dict = {}
         for i, (c, h) in enumerate(model.initial_state):
             feed_dict[c] = state[i].c
             feed_dict[h] = state[i].h
+        # feed_dict["embeddings"] = embeddings
+        feed_dict[model.inputs] = x
+        feed_dict[model.targets] = y
 
         vals = session.run(fetches, feed_dict)
         cost = vals["cost"]
@@ -360,8 +414,8 @@ def main(_):
     if not FLAGS.data_path:
         raise ValueError("Must set --data_path to wiki data directory")
 
-    raw_data = reader.wiki_raw_data(FLAGS.data_path, FLAGS.word_to_id_path)
-    train_data, valid_data, test_data = raw_data
+    # raw_data = reader.wiki_raw_data(FLAGS.data_path, FLAGS.word_to_id_path)
+    train_data, valid_data, test_data = None, None, None
 
     #vocab_size = get_vocab_size()
     vocab_size = 126930
