@@ -62,7 +62,7 @@ sys.path.insert(0, "../src/")
 import inspect
 import time
 from utils.vector_manager import VectorManager
-
+import subprocess
 
 import numpy as np
 import tensorflow as tf
@@ -84,6 +84,10 @@ flags.DEFINE_string(
     "word_to_id_path", "../models/eos/word2id_1000.pklz",
     "A type of model. Possible options are: small, medium, large.")
 
+flags.DEFINE_string(
+    "embeddings", "../models/eos/idWordVec_",
+    "Embeddings path")
+
 flags.DEFINE_string("data_path", None,
                     "Where the training/test data is stored.")
 flags.DEFINE_string("save_path", None,
@@ -104,65 +108,54 @@ def get_vocab_size():
     print("Vocabulary size: %s" % size)
     return size
 
-class WPInput(object):
-    """The input data."""
 
-    def __init__(self, config, data, name=None):
-        self.batch_size = batch_size = config.batch_size
-        self.num_steps = num_steps = config.num_steps
-        self.epoch_size = ((1516132009 // batch_size) - 1) // num_steps
-        # self.input_data, self.targets = reader.wiki_producer(name,
-        #     data, batch_size, num_steps, name=name)
+def generate_arrays_from_list(name, files, embeddings, num_steps=35, batch_size=20, embedding_size=200, n_vocab=126930):
 
-        embeddings = VectorManager.read_vector("/home/hydra/projects/contextualLSTM/models/eos/idWordVec_%s.pklz"
-                                               % get_config().embedding_size)
-        files = open("/home/hydra/projects/contextualLSTM/data/small/train.list").read().split()
+    debug = False
+    while 1:
+        for file_name in files:
+            # print("Generating from file %s for %s" % (file_name, name))
+            raw_list = VectorManager.parse_into_list(open(file_name).read())
 
-        config = get_config()
-        self.gen = generate_arrays_from_list(files, embeddings, batch_size=config.batch_size,
-                                        embedding_size=config.embedding_size,
-                                        num_steps=config.num_steps, n_vocab=config.vocab_size)
-        self.input_data, self.targets = self.gen.next()
+            n_words = len(raw_list)
+            batch_len = n_words // batch_size
+            data = np.reshape(raw_list[0:batch_size*batch_len], [batch_size, batch_len])
 
+            for i in range(0, n_words - num_steps, num_steps):
 
-def generate_arrays_from_list(files, embeddings, num_steps=35, batch_size=20, embedding_size=200, n_vocab=126930):
+                x = data[0:batch_size, i * num_steps:(i + 1) * num_steps]
+                x = [[embeddings[int(elem)][2] for elem in l] for l in x]
+                y = data[0:batch_size, i * num_steps + 1:(i + 1) * num_steps + 1]
 
-    for file_name in files:
-        raw_list = VectorManager.parse_into_list(open(file_name).read())
+                if debug:
+                    print("Batch size %s\nNum steps %s\nEmbedding size %s" % (batch_size, num_steps, embedding_size
+                                                                              ))
+                    print("Len(x): %s\n Len(x[0] %s\n Len(x[0][0] %s" % (len(x), len(x[0]), len(x[0][0])))
+                    print("Len(y): %s\n Len(y[0] %s" % (len(y), len(y[0])))
 
-        n_words = len(raw_list)
-        batch_len = n_words // batch_size
-        data = np.reshape(raw_list[0:batch_size*batch_len], [batch_size, batch_len])
+                if len(x[0]) < num_steps:
+                    break
+                x = np.reshape(x, newshape=(batch_size, num_steps, embedding_size))
 
-        for i in range(0, n_words - num_steps, 1):
-
-            x = data[0:batch_size, i * num_steps:(i + 1) * num_steps]
-            x = [[embeddings[int(elem)][2] for elem in l] for l in x]
-
-            x = np.reshape(x, newshape=(batch_size, num_steps, embedding_size))
-
-            y = data[0:batch_size, i * num_steps + 1:(i + 1) * num_steps + 1]
-            # y = [[tf.one_hot(elem, n_vocab) for elem in l] for l in y]
-
-            y = np.reshape(y, newshape=(batch_size, num_steps))
-
-            yield x, y
+                y = np.reshape(y, newshape=(batch_size, num_steps))
+                # except ValueError as e:
+                #     # End of file reached
+                #     print("Exception %s" % e)
+                #     break
+                yield x, y
 
 class WPModel(object):
     """Word Prediction model."""
 
-    def __init__(self, is_training, config, input_):
-        self._input = input_
+    def __init__(self, is_training, config):
 
-        batch_size = input_.batch_size
-        num_steps = input_.num_steps
+        self.config = config
+        batch_size = config.batch_size
+        num_steps = config.num_steps
         size = config.hidden_size
         vocab_size = config.vocab_size
         embedding_size = config.embedding_size
 
-        # Slightly better results can be obtained with forget gate biases
-        # initialized to 1 but the hyperparameters of the model would need to be
-        # different than reported in the paper.
         def lstm_cell():
             # With the latest TensorFlow source code (as of Mar 27, 2017),
             # the BasicLSTMCell will need a reuse parameter which is unfortunately not
@@ -213,6 +206,7 @@ class WPModel(object):
         # The alternative version of the code below is:
         #
         inputs = tf.unstack(inputs, num=num_steps, axis=1)
+
         outputs, state = tf.contrib.rnn.static_rnn(
             cell, inputs, initial_state=self._initial_state)
         # TODO: passing the sequence_length argument will enable to input variable-length tensors
@@ -298,7 +292,7 @@ class SmallConfig(object):
     batch_size = 20
     vocab_size = 126930
     embedding_size = 200
-
+    epoch_size = 1
 
 class MediumConfig(object):
     """Medium config."""
@@ -315,7 +309,7 @@ class MediumConfig(object):
     batch_size = 20
     vocab_size = 126930
     embedding_size = 200
-
+    epoch_size = 1
 
 class LargeConfig(object):
     """Large config."""
@@ -332,7 +326,7 @@ class LargeConfig(object):
     batch_size = 20
     vocab_size = 126930
     embedding_size = 1000
-
+    epoch_size = 1
 
 class TestConfig(object):
     """Tiny config, for testing."""
@@ -346,16 +340,18 @@ class TestConfig(object):
     max_max_epoch = 1
     keep_prob = 1.0
     lr_decay = 0.5
-    batch_size = 20
+    batch_size = 10
     vocab_size = 126930
     embedding_size = 200
+    epoch_size = 1
 
 
-def run_epoch(session, model, eval_op=None, verbose=False):
+def run_epoch(session, generator, model, eval_op=None, verbose=False):
     """Runs the model on the given data."""
     start_time = time.time()
     costs = 0.0
     iters = 0
+    config = model.config
     state = session.run(model.initial_state)
 
     fetches = {
@@ -365,15 +361,9 @@ def run_epoch(session, model, eval_op=None, verbose=False):
     if eval_op is not None:
         fetches["eval_op"] = eval_op
 
-    embeddings = VectorManager.read_vector("/home/hydra/projects/contextualLSTM/models/eos/idWordVec_%s.pklz"
-                                           % get_config().embedding_size)
-    files = open("/home/hydra/projects/contextualLSTM/data/small/train.list").read().split()
-
-    config = get_config()
-    gen = generate_arrays_from_list(files, embeddings, batch_size=config.batch_size, embedding_size=config.embedding_size,
-                                    num_steps=config.num_steps, n_vocab=config.vocab_size)
-    for step in range(model.input.epoch_size):
-        x, y = gen.next()
+    print("Epoch size starting training %s" % config.epoch_size)
+    for step in range(config.epoch_size):
+        x, y = generator.next()
         feed_dict = {}
         for i, (c, h) in enumerate(model.initial_state):
             feed_dict[c] = state[i].c
@@ -387,12 +377,12 @@ def run_epoch(session, model, eval_op=None, verbose=False):
         state = vals["final_state"]
 
         costs += cost
-        iters += model.input.num_steps
+        iters += config.num_steps
 
-        if verbose and step % (model.input.epoch_size // 10) == 10:
+        if verbose and step % (config.epoch_size // 10) == 10:
             print("%.3f perplexity: %.3f speed: %.0f wps" %
-                  (step * 1.0 / model.input.epoch_size, np.exp(costs / iters),
-                   iters * model.input.batch_size / (time.time() - start_time)))
+                  (step * 1.0 / config.epoch_size, np.exp(costs / iters),
+                   iters * config.batch_size / (time.time() - start_time)))
 
     return np.exp(costs / iters)
 
@@ -409,10 +399,20 @@ def get_config():
     else:
         raise ValueError("Invalid model: %s", FLAGS.model)
 
+def get_epoch_size(files, config):
+    total = 0
+    for file in files:
+        file_words = subprocess.check_output(['wc', '-w', file])
+        number = file_words.split()[0]
+        total += int(number)
+    print("Total words %s" % total)
+    epoch_size = ((total // config.batch_size) - 1) // config.num_steps # TODO add size wrt data size
+
+    return epoch_size
 
 def main(_):
     if not FLAGS.data_path:
-        raise ValueError("Must set --data_path to wiki data directory")
+        raise ValueError("Must set --data_path to wiki data directory list")
 
     # raw_data = reader.wiki_raw_data(FLAGS.data_path, FLAGS.word_to_id_path)
     train_data, valid_data, test_data = None, None, None
@@ -423,34 +423,57 @@ def main(_):
     config = get_config()
     config.vocab_size = vocab_size
 
+    valid_config = config
+
+
     eval_config = get_config()
     eval_config.batch_size = 1
     eval_config.num_steps = 1
     eval_config.vocab_size = vocab_size
 
+    embeddings = VectorManager.read_vector("%s%s.pklz" % (FLAGS.embeddings, config.embedding_size))
+    files = open(FLAGS.data_path).read().split()
+
+    training_list = files[0:int(0.8 * len(files))]
+    validation_list = files[int(0.8 * len(files)):int(0.9 * len(files))]
+    testing_list = files[int(0.9 * len(files)):len(files)]
+
+    config.epoch_size = get_epoch_size(training_list, config)
+    valid_config.epoch_size = get_epoch_size(validation_list, valid_config)
+    eval_config.epoch_size = get_epoch_size(testing_list, eval_config)
+
+
+    gen_train = generate_arrays_from_list("Train", training_list, embeddings, batch_size=config.batch_size, embedding_size=config.embedding_size,
+                                    num_steps=config.num_steps, n_vocab=config.vocab_size)
+    gen_valid = generate_arrays_from_list("Validation", validation_list, embeddings, batch_size=config.batch_size, embedding_size=config.embedding_size,
+                                    num_steps=config.num_steps, n_vocab=config.vocab_size)
+    gen_test = generate_arrays_from_list("Test", testing_list, embeddings, batch_size=config.batch_size, embedding_size=config.embedding_size,
+                                    num_steps=config.num_steps, n_vocab=config.vocab_size)
+
+    print("Epoch sizes\n * Training: %s\n * Validation: %s\n * Testing: %s" %
+          (config.epoch_size, valid_config.epoch_size, eval_config.epoch_size) )
     with tf.Graph().as_default():
         # Args: [minval, maxval]
         initializer = tf.random_uniform_initializer(-config.init_scale,
                                                     config.init_scale)
 
         with tf.name_scope("Train"):
-            train_input = WPInput(config=config, data=train_data, name="TrainInput")
+            # train_input = WPInput(config=config, data=train_data, name="TrainInput")
             with tf.variable_scope("Model", reuse=None, initializer=initializer):
-                m = WPModel(is_training=True, config=config, input_=train_input)
+                m = WPModel(is_training=True, config=config)
             tf.summary.scalar("Training Loss", m.cost)
             tf.summary.scalar("Learning Rate", m.lr)
 
         with tf.name_scope("Valid"):
-            valid_input = WPInput(config=config, data=valid_data, name="ValidInput")
+            # valid_input = WPInput(config=config, data=valid_data, name="ValidInput")
             with tf.variable_scope("Model", reuse=True, initializer=initializer):
-                mvalid = WPModel(is_training=False, config=config, input_=valid_input)
+                mvalid = WPModel(is_training=False, config=valid_config)
             tf.summary.scalar("Validation Loss", mvalid.cost)
 
         with tf.name_scope("Test"):
-            test_input = WPInput(config=eval_config, data=test_data, name="TestInput")
+            # test_input = WPInput(config=eval_config, data=test_data, name="TestInput")
             with tf.variable_scope("Model", reuse=True, initializer=initializer):
-                mtest = WPModel(is_training=False, config=eval_config,
-                                input_=test_input)
+                mtest = WPModel(is_training=False, config=eval_config)
 
         sv = tf.train.Supervisor(logdir=FLAGS.save_path)
         with sv.managed_session() as session:
@@ -459,13 +482,13 @@ def main(_):
                 m.assign_lr(session, config.learning_rate * lr_decay)
 
                 print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
-                train_perplexity = run_epoch(session, m, eval_op=m.train_op,
+                train_perplexity = run_epoch(session, generator=gen_train, model=m, eval_op=m.train_op,
                                              verbose=True)
                 print("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
-                valid_perplexity = run_epoch(session, mvalid)
+                valid_perplexity = run_epoch(session, generator=gen_valid, model=mvalid)
                 print("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
 
-            test_perplexity = run_epoch(session, mtest)
+            test_perplexity = run_epoch(session, generator=gen_test, model=mtest)
             print("Test Perplexity: %.3f" % test_perplexity)
 
             if FLAGS.save_path:
