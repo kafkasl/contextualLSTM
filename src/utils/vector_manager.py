@@ -72,7 +72,10 @@ class VectorManager(object):
                 return np.load(f)
         if ext == "pklz":
             with open(filename, 'rb') as f:
-                return pickle.load(f)
+                try:
+                    return pickle.load(f, encoding="latin1")
+                except:
+                    return pickle.load(f)
         else:
             with open(filename, 'rb') as f:
                 data = f.read()

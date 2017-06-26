@@ -11,15 +11,16 @@ from __future__ import print_function
 import sys
 sys.path.insert(0, "../src/")
 
+import inspect
+import time
 from utils.vector_manager import VectorManager
+from context.creator import TopicCreator
+# from context.create import get_lda_best_topic_words, get_lda_topic_embedding, get_lsa_topic_embeding
+import subprocess
 
 import numpy as np
 import tensorflow as tf
-
-import subprocess
-import inspect
-import time
-
+from gensim.models import LsiModel, LdaModel
 
 flags = tf.flags
 logging = tf.logging
@@ -33,12 +34,18 @@ flags.DEFINE_string(
     "Tasks to be performed. Possible options are: all, train, test, valid")
 
 flags.DEFINE_string(
-    "word_to_id_path", "../models/eos/word2id_1000.pklz",
+    "word2id_path", "../models/eos/word2id_",
     "A type of model. Possible options are: small, medium, large.")
 
 flags.DEFINE_string(
     "embeddings", "../models/eos/idWordVec_",
     "Embeddings path")
+
+flags.DEFINE_string("topic_model_path", "../models/topics/lda_parallel_bf64b098-c517-47c8-9267-1ce116e0033d",
+                    "Where the lda model is stored.")
+
+flags.DEFINE_string("dictionary_path", "../models/topics/gensim_wordids.txt.bz2",
+                    "Where the dictionary is stored.")
 
 flags.DEFINE_string("data_path", None,
                     "Where the training/test data is stored.")
@@ -47,6 +54,9 @@ flags.DEFINE_string("save_path", None,
 flags.DEFINE_bool("use_fp16", False,
                   "Train using 16-bit floats instead of 32bit floats")
 
+flags.DEFINE_string("context", "lda",
+                  "Type of context to be used. Possible values are, lda, lda_mean, lsi, arithmetic")
+
 FLAGS = flags.FLAGS
 
 
@@ -54,44 +64,89 @@ def data_type():
     return tf.float16 if FLAGS.use_fp16 else tf.float32
 
 
-def get_vocab_size():
-    word_to_id = VectorManager.read_vector(FLAGS.word_to_id_path)
-    size = len(word_to_id)
-    print("Vocabulary size: %s" % size)
-    return size
+def get_context(topic_creator, segment):
+    if FLAGS.context == "lda":
+        return topic_creator.get_lda_best_topic_words(segment)
+    if FLAGS.context == "lda_mean":
+        return topic_creator.get_lda_topic_embedding(segment)
+    if FLAGS.context == "lsi":
+        return topic_creator.get_lsa_topic_embeding(segment)
+    if FLAGS.context == "arithmetic":
+        return topic_creator.average_embeddings(segment)
 
 
-def generate_arrays_from_list(name, files, embeddings, num_steps=35, batch_size=20, embedding_size=200):
-
+def generate_arrays_from_list(name, topic_creator, files, embeddings, num_steps=35, batch_size=20, embedding_size=200):
+    eos_mark = [id for id, w, vec in embeddings if w == "<eos>"][0]
+    eop_mark = [id for id, w, vec in embeddings if w == "<eop>"][0]
+    unknown_embedding = [vec for id, w, vec in embeddings if w == "<unk>"][0]
     debug = False
+    # print("EOS mark: %s, EOP mark: %s" % (eos_mark, eop_mark))
     while 1:
         for file_name in files:
-            print("Generating from file %s for %s" % (file_name, name))
             raw_list = VectorManager.parse_into_list(open(file_name).read())
 
             n_words = len(raw_list)
             batch_len = n_words // batch_size
             data = np.reshape(raw_list[0:batch_size*batch_len], [batch_size, batch_len])
+            sentSegments = [list() for _ in range(batch_size)]
+            parSegments = [list() for _ in range(batch_size)]
+
 
             for i in range(0, n_words - num_steps, 1):
 
                 x = data[0:batch_size, i * num_steps:(i + 1) * num_steps]
-                x = [[embeddings[int(elem)][2] for elem in l] for l in x]
                 y = data[0:batch_size, i * num_steps + 1:(i + 1) * num_steps + 1]
-
 
                 if len(x[0]) < num_steps or len(y[0]) < num_steps:
                     break
+
+
+                emb_x = [[embeddings[int(elem)][2] for elem in l] for l in x]
+                emb_x = np.reshape(emb_x, newshape=(batch_size, num_steps, embedding_size))
+
+                final_x = np.zeros(shape=(batch_size, num_steps, len(embeddings[0][2])*3))
+                for batch in range(0, batch_size):
+                    for step in range(0, num_steps):
+                        if debug:
+                            print("%s == %s ? %s [eos]\n%s == %s ? %s[eop]" % (int(x[batch][step]), eos_mark,
+                                                                           int(x[batch][step]) == eos_mark,
+                                                                           int(x[batch][step]), eop_mark,
+                                                                           int(x[batch][step]) == eop_mark))
+                        if int(x[batch][step]) == eos_mark:
+                            sentSegments[batch] = []
+                        else:
+                            sentSegments[batch].append(x[batch][step])
+                        if int(x[batch][step]) == eop_mark:
+                            parSegments[batch] = []
+                        else:
+                            parSegments[batch].append(x[batch][step])
+
+                        sentTopic = unknown_embedding
+                        parTopic = unknown_embedding
+                        if sentSegments:
+                            sentTopic = get_context(topic_creator, sentSegments[batch])
+
+                        if parSegments:
+                            if sentSegments[batch] == parSegments[batch]:
+                                parTopic = sentTopic
+                            else:
+                                parTopic = get_context(topic_creator, parSegments[batch])
+
+                        final_x[batch][step] = np.hstack((emb_x[batch][step], sentTopic, parTopic))
+
+
+
                 if debug:
                     print("Batch size %s\nNum steps %s\nEmbedding size %s" % (batch_size, num_steps, embedding_size
                                                                               ))
                     print("Len(x): %s\n Len(x[0] %s\n Len(x[0][0] %s" % (len(x), len(x[0]), len(x[0][0])))
                     print("Len(y): %s\n Len(y[0] %s" % (len(y), len(y[0])))
-                x = np.reshape(x, newshape=(batch_size, num_steps, embedding_size))
+
+
 
                 y = np.reshape(y, newshape=(batch_size, num_steps))
 
-                yield x, y
+                yield final_x, y
 
 class WPModel(object):
     """Word Prediction model."""
@@ -131,7 +186,8 @@ class WPModel(object):
         self._initial_state = cell.zero_state(batch_size, data_type())
 
         with tf.device("/cpu:0"):
-            self.inputs = tf.placeholder(dtype=data_type(), shape=(batch_size, num_steps, embedding_size))
+
+            self.inputs = tf.placeholder(dtype=data_type(), shape=(batch_size, num_steps, embedding_size*3))
             self.targets = tf.placeholder(dtype=tf.int32, shape=(batch_size, num_steps))
 
         if is_training and config.keep_prob < 1:
@@ -211,7 +267,7 @@ class SmallConfig(object):
     num_layers = 1
     num_steps = 20
     hidden_size = 200
-    max_epoch = 2
+    max_epoch = 4
     max_max_epoch = 13
     keep_prob = 1.0
     lr_decay = 0.5
@@ -288,12 +344,14 @@ def run_epoch(session, generator, model, eval_op=None, verbose=False):
         fetches["eval_op"] = eval_op
 
     print("Epoch size starting training %s" % config.epoch_size)
+    sys.stdout.flush()
     for step in range(config.epoch_size):
         x, y = next(generator)
         feed_dict = {}
         for i, (c, h) in enumerate(model.initial_state):
             feed_dict[c] = state[i].c
             feed_dict[h] = state[i].h
+        # feed_dict["embeddings"] = embeddings
         feed_dict[model.inputs] = x
         feed_dict[model.targets] = y
 
@@ -304,11 +362,11 @@ def run_epoch(session, generator, model, eval_op=None, verbose=False):
         costs += cost
         iters += config.num_steps
 
-        # if verbose and step % 100 == 0:
-        print("%.3f perplexity: %.3f speed: %.0f wps" %
-              (step * 1.0 / config.epoch_size, np.exp(costs / iters),
-               iters * config.batch_size / (time.time() - start_time)))
-        sys.stdout.flush()
+        if verbose and step % 100 == 0:
+            print("%.3f perplexity: %.3f speed: %.0f wps" %
+                  (step * 1.0 / config.epoch_size, np.exp(costs / iters),
+                   iters * config.batch_size / (time.time() - start_time)))
+            sys.stdout.flush()
 
     return np.exp(costs / iters)
 
@@ -357,21 +415,37 @@ def main(_):
     eval_config.vocab_size = vocab_size
 
     embeddings = VectorManager.read_vector("%s%s.pklz" % (FLAGS.embeddings, config.embedding_size))
+
+    # Load LDA or LSI model for topic creator
+    if "lda" in FLAGS.context:
+        model = LdaModel.load(FLAGS.topic_model_path)
+    elif "lsi" in FLAGS.context:
+        model = LsiModel.load(FLAGS.topic_model_path)
+    else:
+        model = None
+
+    topic_creator = TopicCreator(FLAGS.dictionary_path, "%s%s.pklz" % (FLAGS.word2id_path, config.embedding_size),
+                                 embeddings, model)
     files = open(FLAGS.data_path).read().split()
 
     training_list = files[0:int(0.8 * len(files))]
     validation_list = files[int(0.8 * len(files)):int(0.9 * len(files))]
     testing_list = files[int(0.9 * len(files)):len(files)]
 
+    print("Lists sizes\n * Training: %s\n * Validation: %s\n * Testing: %s" %
+          (len(training_list), len(validation_list), len(testing_list)))
+
     config.epoch_size = get_epoch_size(training_list, config)
     valid_config.epoch_size = get_epoch_size(validation_list, valid_config)
     eval_config.epoch_size = get_epoch_size(testing_list, eval_config)
 
-    gen_train = generate_arrays_from_list("Train", training_list, embeddings, batch_size=config.batch_size,
+    gen_train = generate_arrays_from_list("Train", topic_creator, training_list, embeddings, batch_size=config.batch_size,
                                           embedding_size=config.embedding_size, num_steps=config.num_steps)
-    gen_valid = generate_arrays_from_list("Validation", validation_list, embeddings, batch_size=valid_config.batch_size,
+
+    gen_valid = generate_arrays_from_list("Validation", topic_creator, validation_list, embeddings, batch_size=valid_config.batch_size,
                                           embedding_size=valid_config.embedding_size, num_steps=valid_config.num_steps)
-    gen_test = generate_arrays_from_list("Test", testing_list, embeddings, batch_size=eval_config.batch_size,
+
+    gen_test = generate_arrays_from_list("Test", topic_creator, testing_list, embeddings, batch_size=eval_config.batch_size,
                                          embedding_size=eval_config.embedding_size, num_steps=eval_config.num_steps)
 
     print("Epoch sizes\n * Training: %s\n * Validation: %s\n * Testing: %s" %
