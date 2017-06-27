@@ -15,6 +15,3 @@ python /gpfs/home/bsc19/bsc19277/contextualLSTM/src/lda/lda.py -d /gpfs/home/bsc
 
 sbatch < job
 rm job
-#SBATCH --dependency=afterany:753016
-
-#SBATCH --mem=100000

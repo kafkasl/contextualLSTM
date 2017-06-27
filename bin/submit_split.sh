@@ -22,5 +22,4 @@ python /gpfs/home/bsc19/bsc19277/contextualLSTM/src/utils/split_1k.py -d /gpfs/h
 
 sbatch < job
 rm job
-#SBATCH --dependency=afterany:753016
 

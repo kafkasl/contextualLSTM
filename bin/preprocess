@@ -3,4 +3,3 @@
 export PYTHONPATH="$PYTHONPATH:../src/"
 
 python2 preprocess.py -d ../data/small -s $1 -c $2
-#python2 preprocess.py -d ../data/test_wiki -s $1 -c $2

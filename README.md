@@ -26,3 +26,9 @@ Basic LSTM implementation with TF at  ./src/lstm_frag.py
 Contextual LSTM implementation with TF at  ./src/clstm.py
 
 **Although functional, this version is still too slow to be practical for training. If you want to collaborate or have any question regarding it feel free to contact me, I plan to finish it shortly and upload a detailed description of it.**
+
+
+## Execution
+
+Most files have their own execution script under /bin folder.
+All scripts named submit_XXX.sh are designed to be run in a SuperComputer with Slurm queue system. In order to run the locally, just issue the python commands followed by the correct paths. **Note:** due to the use of many different packages not all files run with the same Python version (some with 2.7, others with 3.5.2 and the rest 3.6), I expect to unify them (or state clearly the version) soon.

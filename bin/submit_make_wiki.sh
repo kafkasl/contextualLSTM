@@ -14,6 +14,3 @@ python -m gensim.scripts.make_wiki /gpfs/home/bsc19/bsc19277/contextualLSTM/data
 
 sbatch < job
 rm job
-#SBATCH --dependency=afterany:753016
-
-#SBATCH --mem=100000
