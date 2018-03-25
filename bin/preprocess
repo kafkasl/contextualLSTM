@@ -1,5 +1,0 @@
-#!/bin/bash 
-
-export PYTHONPATH="$PYTHONPATH:../src/"
-
-python2 preprocess.py -d ../data/small -s $1 -c $2

@@ -78,7 +78,7 @@ class FileW2ID(object):
             yield (file, self.w2id)
 
 
-def translate_files(data_path, w2id, suffix="_simple", debug=False):
+def translate_files(data_path, w2id, suffix="_clean", debug=False):
     """
     Handles the parallel translation from word to id of the files in data_path with the mapping w2id
     :param data_path: path of the files to transform. Used to be called from either main or as block of

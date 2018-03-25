@@ -20,17 +20,12 @@ class MySentences(object):
         self.files = []
         self.file_paths = []
         for root, dirs, files in os.walk(self.dirname):
-            for filename in [file for file in files if file.endswith("_simple")]:
+            # for filename in [file for file in files if file.endswith("_simple")]:
+            for filename in [file for file in files if file.endswith("_clean")]:
                 file_path = root + '/' + filename
                 self.file_paths.append(file_path)
         print("Got %s files to turn into sentences" % len(self.file_paths))
 
-        # threads = mp.cpu_count()
-        # with closing(mp.Pool(threads, maxtasksperchild=10)) as p:
-        #
-        #     file_vecs = p.map(read_file, file_paths)
-        #     self.files.append(file_vecs)
-        #     print("My Sentences initialized with all data in memory.")
 
     def __iter__(self):
         """
@@ -56,7 +51,7 @@ def create_embeddings(files_path, embedding_size, minimum_count):
     :param minimum_count: min. occurrences per word to be included
     :return: word2vec model with all the embeddings and extra info
     """
-    print("[BLOCK] Initializing MySentences")
+    print("[BLOCK] Initializing MySentences from {}".format(files_path))
     sentences = MySentences(files_path)
     print("[BLOCK] Creating embeddings model")
     sys.stdout.flush()
@@ -77,7 +72,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--data', type=str, help="Path of the data to be used for the word embeddings"
                                                        " and clean up.", required=True)
     parser.add_argument('-s', '--size', type=int, help="Size of the word embeddings.", default=200, required=True)
-    parser.add_argument('-c', '--min_count', type=int, help="Size of the word embeddings.", default=200, required=False)
+    parser.add_argument('-c', '--min_count', type=int, help="Size of the word embeddings.", default=1, required=False)
 
     args = parser.parse_args()
     data_path = args.data

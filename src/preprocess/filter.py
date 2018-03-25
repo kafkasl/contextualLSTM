@@ -146,7 +146,7 @@ def filter_data(files_path, w2Id, paragraph_mark):
     :return: MySentences class ready to be fed to Word2Vec model
     """
     print("[BLOCK] Filtering sentences to files divided by <eos> (splitting also paragraphs? %s)" % paragraph_mark)
-    transform(files_path, w2Id)
+    transform(files_path, w2Id, paragraph_mark)
     print("[BLOCK] Done transforming data")
     sys.stdout.flush()
 
