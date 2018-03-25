@@ -356,7 +356,8 @@ def main(_):
     eval_config.num_steps = 1
     eval_config.vocab_size = vocab_size
 
-    embeddings = VectorManager.read_vector("%s%s.pklz" % (FLAGS.embeddings, config.embedding_size))
+    print("Embeddings path: {}".format(FLAGS.embeddings))
+    embeddings = VectorManager.read_vector(FLAGS.embeddings)
     files = open(FLAGS.data_path).read().split()
 
     training_list = files[0:int(0.8 * len(files))]

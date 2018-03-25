@@ -17,7 +17,7 @@ find ../data/ -name *num_eos > ../data/full.list
 # Run the LSTM 
 python ../src/lstm/lstm.py \
         --data_path ../data/full.list \
-        --embeddings ../models/eos/idWordVec_ \
+        --embeddings ../models/idWordVec_${embeddings_size}.pklz \
         --model large \
         --use_fp16 True \
-        --word_to_id ../models/eos/word2id_${embeddings_size}.pklz
+        --word_to_id ../models/word2id_${embeddings_size}.pklz
