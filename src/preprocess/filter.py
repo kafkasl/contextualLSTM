@@ -104,8 +104,15 @@ def transform(dirname, w2Id, paragraph_mark, debug=False):
     Handles the parallel transformation of all the dataset into 4D lists
     """
     for root, dirs, files in os.walk(dirname):
-        filtered_files = ["%s/%s" % (root, file) for file in files if
-                          is_number(file.split("_")[1]) and len(file.split("_")) == 2]
+        filtered_files = []
+        for file in files:
+            print("File: {}".format(file))
+            try:
+                if is_number(file.split("_")[1]) and len(file.split("_")) == 2:
+                    filtered_files.append("%s/%s" % (root, file))
+            except IndexError:
+                pass
+
 
         threads = min(mp.cpu_count() * 4, filtered_files)
         print("Starting %s processes to clean %s files" % (threads, len(filtered_files)))

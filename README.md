@@ -40,6 +40,9 @@ where:
  * 500 is the desired embedding size.
 
 
+To run just the pipeline with pre-trained embeddings run:
+
+
 
 ## LSTM 
 

@@ -5,10 +5,15 @@ export PYTHONPATH="$PYTHONPATH:../src/"
 data_path=$1
 embeddings_size=$2
 
-# Preprocess all wiki data and create embeddings
-python2 preprocess.py \
+
+python2 ../src/preprocess/filter.py \
     --data ${data_path} \
-    --size ${embeddings_size}
+    --word_vector ../models/word2id_1000.pklz
+
+# Translate all wiki data
+python2 ../src/preprocess/words2ids.py \
+    --data ${data_path} \
+    --word_vector ../models/eos/word2id_1000.pklz
 
 
 # Put all the files into a list to be fed to TF LSTM
