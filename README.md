@@ -40,8 +40,9 @@ where:
  * 500 is the desired embedding size.
 
 
-To run just the pipeline with pre-trained embeddings run:
+To run just the pipeline with pre-trained embeddings of size 1000 run:
 
+`./run_short_pipeline.sh ../data/ 1000`
 
 
 ## LSTM 
