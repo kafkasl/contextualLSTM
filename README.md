@@ -3,6 +3,8 @@ Contextual LSTM for NLP tasks like word prediction
  
 This repo's goal is to implement de Contextual LSTM model for word prediction as described by [Ghosh, S., Vinyals, O., Strope, B., Roy, S., Dean, T., & Heck, L. (n.d.). Contextual LSTM (CLSTM) models for Large scale NLP tasks. https://doi.org/10.1145/12351]
 
+**Notes**: there are scripts to run the pipelines. However, the project needs a bit of cleanup. If anyone is interested in using it please write to me or open an issue and I'll fix/help with any error you have.
+
 
 ## Data preprocessing and embeddings
 
@@ -43,6 +45,12 @@ where:
 To run just the pipeline with pre-trained embeddings of size 1000 run:
 
 `./run_short_pipeline.sh ../data/ 1000`
+
+You can download the required trained embeddings from here:
+
+https://www.dropbox.com/s/ws6d8l6h6jp3ldc/embeddings.tar.gz?dl=0
+
+You should place them inside the models/ folder
 
 
 ## LSTM 
