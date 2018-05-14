@@ -23,7 +23,7 @@ Further details of different gensim topic detection methods as well as embedding
 
 Download a wikipedia dump for example:
 
-http://ftp.acc.umu.se/mirror/wikimedia.org/dumps/enwiki/20180120/enwiki-20180120-pages-articles.xml.bz2
+https://dumps.wikimedia.org/enwiki/20180420/enwiki-20180420-pages-articles.xml.bz2
 
 After that use wiki_extractor to process it:
 
