@@ -49,16 +49,17 @@ def is_number(s):
 def _transform_file(file_path, debug=False):
     """
     Transforms a file containing articles into a 4D list of words divided into sentences,
-    paragraphs and docs. Write the result to disk with the name filename_clean.pklz
+    paragraphs and docs. Write the result to disk with the name filename_wl (words list)
     :param file_path: file to transform
     """
     if debug:
         print("Cleaning %s" % file_path)
     with open(file_path) as f:
-        data = f.read().decode("latin-1")
+        raw = f.read().decode("latin-1")
+        data = cleanhtml(raw)
         docs = data.split("</doc>")
         del data
-    file_out = "%s_clean" % file_path
+    file_out = "%s_wl" % file_path
     file_string = ""
     for doc in [d.strip() for d in docs if d.strip()]:
         paragraphs = [tokenize(par) for par in remove_title(cleanhtml(doc)).strip().split("\n\n") if par]
